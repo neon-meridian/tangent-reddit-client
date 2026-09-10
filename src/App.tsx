@@ -468,7 +468,7 @@ export default function HomePage() {
               </div>
             </section>
             <section className="rail-card compact-card">
-              <CircleUserRound className="size-5" /><div><h2>Your week</h2><p>12 saved posts · 8 conversations</p></div><button>View</button>
+              <CircleUserRound className="size-5" /><div><h2>Your week</h2><p>12 saved posts · feed ready</p></div><button>View</button>
             </section>
             <p className="legal-line">Tangent is an independent client for Reddit. <a href="/privacy.html">Privacy</a> · <a href="/terms.html">Terms</a> · <a href="/support.html">Support</a></p>
           </aside>
