@@ -1,0 +1,60 @@
+<svg width="1280" height="460" viewBox="0 0 1280 460" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title description">
+  <title id="title">Tangent for Reddit</title>
+  <desc id="description">A focused desktop Reddit client in Tangent's charcoal, paper, and orange palette.</desc>
+  <defs>
+    <linearGradient id="background" x1="100" y1="0" x2="1180" y2="460" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#1D1C1B"/>
+      <stop offset="1" stop-color="#332C29"/>
+    </linearGradient>
+    <linearGradient id="orange" x1="862" y1="90" x2="1126" y2="366" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FF8A59"/>
+      <stop offset="1" stop-color="#E64F2C"/>
+    </linearGradient>
+    <filter id="glow" x="714" y="-30" width="540" height="540" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="38"/>
+    </filter>
+    <clipPath id="panelClip"><rect x="793" y="70" width="386" height="320" rx="24"/></clipPath>
+  </defs>
+  <rect width="1280" height="460" rx="28" fill="url(#background)"/>
+  <circle cx="1033" cy="230" r="151" fill="#E64F2C" opacity=".24" filter="url(#glow)"/>
+  <path d="M0 365C154 306 228 415 394 357C543 305 569 225 718 258" stroke="#F6B76B" stroke-opacity=".18" stroke-width="2"/>
+  <path d="M0 404C162 345 291 438 437 379C570 325 636 260 754 290" stroke="#F6B76B" stroke-opacity=".1" stroke-width="2"/>
+  <g transform="translate(78 90)">
+    <g fill="#E64F2C">
+      <rect width="52" height="7" rx="3.5" transform="rotate(10 0 0)"/>
+      <rect y="17" width="78" height="7" rx="3.5"/>
+      <rect x="26" y="34" width="52" height="7" rx="3.5" transform="rotate(-10 26 34)"/>
+    </g>
+    <text x="0" y="106" fill="#FBFAF6" font-family="Inter, Arial, sans-serif" font-size="58" font-weight="750" letter-spacing="-2.4">Tangent</text>
+    <text x="3" y="140" fill="#F6B76B" font-family="Inter, Arial, sans-serif" font-size="17" font-weight="700" letter-spacing="4">FOR REDDIT</text>
+    <text x="0" y="218" fill="#D6D0C7" font-family="Inter, Arial, sans-serif" font-size="25" font-weight="400">A focused, user-operated</text>
+    <text x="0" y="252" fill="#D6D0C7" font-family="Inter, Arial, sans-serif" font-size="25" font-weight="400">desktop client for Reddit.</text>
+    <rect x="0" y="287" width="220" height="38" rx="19" fill="#FBFAF6" fill-opacity=".1"/>
+    <circle cx="20" cy="306" r="5" fill="#E64F2C"/>
+    <text x="36" y="312" fill="#FBFAF6" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="650">Private by design</text>
+  </g>
+  <g clip-path="url(#panelClip)">
+    <rect x="793" y="70" width="386" height="320" rx="24" fill="#FBFAF6"/>
+    <rect x="793" y="70" width="112" height="320" fill="#242220"/>
+    <rect x="818" y="103" width="45" height="6" rx="3" fill="#E64F2C"/>
+    <rect x="818" y="132" width="60" height="7" rx="3.5" fill="#FFF" fill-opacity=".88"/>
+    <rect x="818" y="157" width="44" height="7" rx="3.5" fill="#FFF" fill-opacity=".42"/>
+    <rect x="818" y="182" width="53" height="7" rx="3.5" fill="#FFF" fill-opacity=".42"/>
+    <rect x="818" y="236" width="47" height="7" rx="3.5" fill="#FFF" fill-opacity=".42"/>
+    <rect x="818" y="261" width="55" height="7" rx="3.5" fill="#FFF" fill-opacity=".42"/>
+    <rect x="929" y="103" width="217" height="27" rx="10" fill="#EDE9E3"/>
+    <circle cx="948" cy="116" r="5" fill="#AAA39A"/>
+    <rect x="960" y="112" width="92" height="7" rx="3.5" fill="#B6B0A8"/>
+    <rect x="929" y="151" width="217" height="152" rx="14" fill="#FFF" stroke="#E6E0D8"/>
+    <rect x="946" y="170" width="22" height="22" rx="7" fill="url(#orange)"/>
+    <rect x="979" y="174" width="69" height="6" rx="3" fill="#6E6861"/>
+    <rect x="946" y="209" width="164" height="11" rx="5.5" fill="#302D29"/>
+    <rect x="946" y="229" width="137" height="8" rx="4" fill="#A09A91"/>
+    <rect x="946" y="249" width="188" height="8" rx="4" fill="#C4BEB5"/>
+    <rect x="946" y="274" width="52" height="13" rx="6.5" fill="#F5E8DE"/>
+    <rect x="1008" y="274" width="44" height="13" rx="6.5" fill="#F0ECE5"/>
+    <rect x="929" y="322" width="104" height="36" rx="12" fill="#2B2926"/>
+    <text x="952" y="345" fill="#FBFAF6" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="700">Create post</text>
+  </g>
+  <rect x="793" y="70" width="386" height="320" rx="24" stroke="#FFF" stroke-opacity=".18"/>
+</svg>

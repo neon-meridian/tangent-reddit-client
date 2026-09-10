@@ -1,6 +1,22 @@
-# Tangent for Reddit
+<p align="center">
+  <img src="./public/readme-banner.svg" alt="Tangent for Reddit — a focused, user-operated desktop client" width="100%" />
+</p>
+
+<p align="center">
+  <strong>A calmer, user-operated desktop client for Reddit.</strong><br />
+  Read deliberately. Act explicitly. Keep your session private.
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/status-active-E64F2C?style=flat-square&labelColor=2B2926" alt="Status: active" />
+  <img src="https://img.shields.io/badge/oauth-temporary%20session-F6B76B?style=flat-square&labelColor=2B2926" alt="OAuth: temporary session" />
+  <img src="https://img.shields.io/badge/data-no%20server%20retention-E64F2C?style=flat-square&labelColor=2B2926" alt="Data: no server retention" />
+</p>
 
 Tangent is an independent, user-operated desktop-style web client for Reddit. It provides a focused interface for reading a signed-in user's feed and, only when the user deliberately presses a control, voting, saving a post, or submitting a text post. Tangent is not affiliated with Reddit, Inc.
+
+> [!NOTE]
+> The visual interface works with preview data until Reddit OAuth is configured. Live actions run only after a user connects their own Reddit account and approves the requested permissions.
 
 ## Review summary
 
