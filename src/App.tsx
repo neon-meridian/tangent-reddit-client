@@ -9,12 +9,10 @@ import {
   Compass,
   Flame,
   Home,
-  Inbox,
   MessageCircle,
   MoreHorizontal,
   PenLine,
   Search,
-  Send,
   Sparkles,
   TrendingUp,
   Users,
@@ -47,8 +45,21 @@ import {
   SidebarTrigger,
 } from '@/components/ui/sidebar';
 import { Textarea } from '@/components/ui/textarea';
+import {
+  beginRedditAuthorization,
+  clearRedditSession,
+  consumeRedditAuthorization,
+  getRedditBest,
+  getRedditIdentity,
+  isRedditConfigured,
+  type RedditListingPost,
+  type RedditSession,
+  setRedditPostSaved,
+  submitRedditTextPost,
+  voteOnRedditPost,
+} from '@/src/lib/reddit';
 
-type View = 'Home' | 'Popular' | 'Explore' | 'Messages' | 'Saved';
+type View = 'Home' | 'Popular' | 'Explore' | 'Saved';
 type Vote = -1 | 0 | 1;
 type Post = {
   id: string;
@@ -62,32 +73,15 @@ type Post = {
   accent: 'blue' | 'violet' | 'orange';
   tag?: string;
   visual?: boolean;
+  fullname?: string;
   saved: boolean;
   vote: Vote;
 };
-
-type WebMcpTool = {
-  name: string;
-  title: string;
-  description: string;
-  inputSchema: Record<string, unknown>;
-  annotations: { readOnlyHint: boolean; untrustedContentHint: boolean };
-  execute: (input: unknown) => unknown;
-};
-
-declare global {
-  interface Document {
-    readonly modelContext?: {
-      registerTool: (tool: WebMcpTool, options?: { signal?: AbortSignal }) => void | Promise<void>;
-    };
-  }
-}
 
 const navigation: { label: View; icon: typeof Home; badge?: string }[] = [
   { label: 'Home', icon: Home },
   { label: 'Popular', icon: Flame },
   { label: 'Explore', icon: Compass },
-  { label: 'Messages', icon: Inbox, badge: '3' },
   { label: 'Saved', icon: Bookmark },
 ];
 
@@ -152,10 +146,6 @@ function formatCount(value: number) {
   return value >= 1000 ? `${(value / 1000).toFixed(value >= 10000 ? 1 : 1)}k` : `${value}`;
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null;
-}
-
 function VoteRail({ post, onVote }: { post: Post; onVote: (vote: Vote) => void }) {
   return (
     <div className="vote-rail" aria-label={`${formatCount(post.score)} votes`}>
@@ -179,6 +169,10 @@ function VoteRail({ post, onVote }: { post: Post; onVote: (vote: Vote) => void }
 export default function HomePage() {
   const [view, setView] = useState<View>('Home');
   const [posts, setPosts] = useState(initialPosts);
+  const [session, setSession] = useState<RedditSession | null>(null);
+  const [username, setUsername] = useState<string | null>(null);
+  const [connectionNotice, setConnectionNotice] = useState<string | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState<'Best' | 'Rising'>('Best');
   const [composerOpen, setComposerOpen] = useState(false);
@@ -187,21 +181,52 @@ export default function HomePage() {
   const [body, setBody] = useState('');
   const searchRef = useRef<HTMLInputElement>(null);
 
+  const mapRedditPost = useCallback((post: RedditListingPost): Post => ({
+    ...post,
+    accent: 'orange',
+    vote: post.likes === true ? 1 : post.likes === false ? -1 : 0,
+  }), []);
+
+  const refreshRedditFeed = useCallback(async (activeSession: RedditSession) => {
+    setIsRefreshing(true);
+    try {
+      const livePosts = await getRedditBest(activeSession);
+      setPosts(livePosts.map(mapRedditPost));
+    } catch (error) {
+      setConnectionNotice(error instanceof Error ? error.message : 'Could not load Reddit right now.');
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [mapRedditPost]);
+
   const voteOnPost = useCallback((postId: string, nextVote: Vote) => {
     setPosts((current) => current.map((post) => {
       if (post.id !== postId) return post;
       const resolvedVote = post.vote === nextVote ? 0 : nextVote;
+      if (session && post.fullname) {
+        void voteOnRedditPost(session, post.fullname, resolvedVote).catch((error: unknown) => {
+          setConnectionNotice(error instanceof Error ? error.message : 'Could not update the Reddit vote.');
+        });
+      }
       return { ...post, score: post.score - post.vote + resolvedVote, vote: resolvedVote };
     }));
-  }, []);
+  }, [session]);
 
   const setPostSaved = useCallback((postId: string, saved?: boolean) => {
     setPosts((current) => current.map((post) => post.id === postId
-      ? { ...post, saved: saved ?? !post.saved }
+      ? (() => {
+        const nextSaved = saved ?? !post.saved;
+        if (session && post.fullname) {
+          void setRedditPostSaved(session, post.fullname, nextSaved).catch((error: unknown) => {
+            setConnectionNotice(error instanceof Error ? error.message : 'Could not update the saved post.');
+          });
+        }
+        return { ...post, saved: nextSaved };
+      })()
       : post));
-  }, []);
+  }, [session]);
 
-  const createPost = useCallback((postTitle: string, postBody: string, postCommunity: string) => {
+  const createPreviewPost = useCallback((postTitle: string, postBody: string, postCommunity: string) => {
     const cleanTitle = postTitle.trim();
     const cleanCommunity = postCommunity.trim();
     if (!cleanTitle || !cleanCommunity.startsWith('r/')) {
@@ -238,88 +263,22 @@ export default function HomePage() {
   }, []);
 
   useEffect(() => {
-    const context = document.modelContext;
-    if (!context?.registerTool) return;
-    const lifecycle = new AbortController();
-    const register = (tool: WebMcpTool) => {
-      try {
-        void Promise.resolve(context.registerTool(tool, { signal: lifecycle.signal })).catch(() => undefined);
-      } catch {
-        // WebMCP is progressive enhancement; visible controls remain fully functional.
+    try {
+      const nextSession = consumeRedditAuthorization();
+      queueMicrotask(() => setSession(nextSession));
+      if (nextSession) {
+        void Promise.resolve().then(async () => {
+          const identity = await getRedditIdentity(nextSession);
+          await refreshRedditFeed(nextSession);
+          return identity;
+        })
+          .then((identity) => queueMicrotask(() => setUsername(identity.name)))
+          .catch((error: unknown) => queueMicrotask(() => setConnectionNotice(error instanceof Error ? error.message : 'Could not complete Reddit sign-in.')));
       }
-    };
-
-    register({
-      name: 'create_reddit_post',
-      title: 'Create post',
-      description: 'Create a new post in the visible Tangent feed.',
-      inputSchema: {
-        type: 'object',
-        properties: {
-          community: { type: 'string', pattern: '^r/' },
-          title: { type: 'string', minLength: 1, maxLength: 300 },
-          body: { type: 'string' },
-        },
-        required: ['community', 'title', 'body'],
-        additionalProperties: false,
-      },
-      annotations: { readOnlyHint: false, untrustedContentHint: false },
-      execute(input) {
-        if (!isRecord(input) || typeof input.title !== 'string' || typeof input.body !== 'string' || typeof input.community !== 'string') {
-          throw new Error('Expected community, title, and body strings.');
-        }
-        const id = createPost(input.title, input.body, input.community);
-        return { id, status: 'created' };
-      },
-    });
-
-    register({
-      name: 'vote_on_reddit_post',
-      title: 'Vote on post',
-      description: 'Cast, change, or remove the signed-in user’s vote on a visible post.',
-      inputSchema: {
-        type: 'object',
-        properties: {
-          postId: { type: 'string' },
-          direction: { type: 'integer', enum: [-1, 0, 1] },
-        },
-        required: ['postId', 'direction'],
-        additionalProperties: false,
-      },
-      annotations: { readOnlyHint: false, untrustedContentHint: false },
-      execute(input) {
-        if (!isRecord(input) || typeof input.postId !== 'string' || ![-1, 0, 1].includes(Number(input.direction))) {
-          throw new Error('Expected a postId and direction of -1, 0, or 1.');
-        }
-        if (!posts.some((post) => post.id === input.postId)) throw new Error('Post not found.');
-        voteOnPost(input.postId, Number(input.direction) as Vote);
-        return { postId: input.postId, direction: Number(input.direction), status: 'updated' };
-      },
-    });
-
-    register({
-      name: 'set_reddit_post_saved',
-      title: 'Save or unsave post',
-      description: 'Set the saved state of a visible post.',
-      inputSchema: {
-        type: 'object',
-        properties: { postId: { type: 'string' }, saved: { type: 'boolean' } },
-        required: ['postId', 'saved'],
-        additionalProperties: false,
-      },
-      annotations: { readOnlyHint: false, untrustedContentHint: false },
-      execute(input) {
-        if (!isRecord(input) || typeof input.postId !== 'string' || typeof input.saved !== 'boolean') {
-          throw new Error('Expected a postId string and saved boolean.');
-        }
-        if (!posts.some((post) => post.id === input.postId)) throw new Error('Post not found.');
-        setPostSaved(input.postId, input.saved);
-        return { postId: input.postId, saved: input.saved, status: 'updated' };
-      },
-    });
-
-    return () => lifecycle.abort();
-  }, [createPost, posts, setPostSaved, voteOnPost]);
+    } catch (error) {
+      queueMicrotask(() => setConnectionNotice(error instanceof Error ? error.message : 'Could not complete Reddit authorization.'));
+    }
+  }, [refreshRedditFeed]);
 
   const visiblePosts = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -333,14 +292,19 @@ export default function HomePage() {
     return next;
   }, [posts, query, sort, view]);
 
-  const submitPost = () => {
+  const submitPost = async () => {
     try {
-      createPost(title, body, community);
+      if (session) {
+        await submitRedditTextPost(session, community, title.trim(), body.trim());
+        await refreshRedditFeed(session);
+      } else {
+        createPreviewPost(title, body, community);
+      }
       setTitle('');
       setBody('');
       setComposerOpen(false);
-    } catch {
-      // Native required fields keep the visible form from reaching this branch.
+    } catch (error) {
+      setConnectionNotice(error instanceof Error ? error.message : 'Could not submit the post.');
     }
   };
 
@@ -399,9 +363,23 @@ export default function HomePage() {
         </SidebarContent>
 
         <SidebarFooter className="border-t border-white/8 p-3">
-          <button className="profile-chip">
+          <button
+            className="profile-chip"
+            onClick={() => {
+              if (session) {
+                clearRedditSession();
+                setSession(null);
+                setUsername(null);
+                setConnectionNotice('Disconnected from Reddit.');
+              } else if (isRedditConfigured()) {
+                beginRedditAuthorization();
+              } else {
+                setConnectionNotice('Add VITE_REDDIT_CLIENT_ID and VITE_REDDIT_REDIRECT_URI before connecting.');
+              }
+            }}
+          >
             <span className="avatar">DI</span>
-            <span className="profile-copy"><strong>darianbuilds</strong><small>4,822 karma</small></span>
+            <span className="profile-copy"><strong>{username ? `u/${username}` : 'Connect Reddit'}</strong><small>{session ? 'Session-only access' : 'OAuth sign-in required'}</small></span>
             <ChevronDown className="ml-auto size-4" />
           </button>
         </SidebarFooter>
@@ -425,9 +403,9 @@ export default function HomePage() {
             </div>
           </div>
           <div className="top-actions">
-            <span className="demo-label"><span /> Preview data</span>
-            <Button variant="ghost" size="icon" aria-label="Notifications" className="relative">
-              <Bell /><span className="notification-dot" />
+            <span className="demo-label"><span /> {session ? (isRefreshing ? 'Refreshing' : 'Connected to Reddit') : 'Preview data'}</span>
+            <Button variant="ghost" size="icon" aria-label="Refresh Reddit feed" className="relative" disabled={!session || isRefreshing} onClick={() => session && void refreshRedditFeed(session)}>
+              <Bell />
             </Button>
             <Button className="create-button" onClick={() => setComposerOpen(true)}>
               <PenLine data-icon="inline-start" />Create
@@ -436,39 +414,8 @@ export default function HomePage() {
         </header>
 
         <main className="workspace">
-          {view === 'Messages' ? (
-            <section className="messages-view" aria-labelledby="messages-title">
-              <div className="feed-heading">
-                <div><p className="eyebrow">Private messages</p><h1 id="messages-title">Inbox</h1></div>
-                <Button className="create-button"><PenLine /> New message</Button>
-              </div>
-              <div className="message-shell">
-                <div className="conversation-list">
-                  {[
-                    ['MK', 'mika_k', 'That photo series is beautiful.', '12m'],
-                    ['RM', 'r/macapps mods', 'Your post has been approved.', '2h'],
-                    ['SF', 'soft_focus', 'Thanks for the recommendation!', '1d'],
-                  ].map(([initials, name, preview, age], index) => (
-                    <button className={index === 0 ? 'conversation active' : 'conversation'} key={name}>
-                      <span className="message-avatar">{initials}</span>
-                      <span><strong>{name}</strong><small>{preview}</small></span>
-                      <em>{age}</em>
-                    </button>
-                  ))}
-                </div>
-                <div className="message-thread">
-                  <div className="thread-header"><span className="message-avatar">MK</span><div><strong>mika_k</strong><small>u/mika_k · 18,402 karma</small></div></div>
-                  <div className="thread-body">
-                    <div className="message-bubble theirs">That photo series is beautiful. The color in the last frame is incredible.</div>
-                    <div className="message-bubble ours">Thank you! That was the morning the fog finally lifted at the right moment.</div>
-                    <div className="message-bubble theirs">Worth the early start, then 😊</div>
-                  </div>
-                  <div className="message-compose"><Input aria-label="Reply" placeholder="Write a reply…" /><Button size="icon" aria-label="Send reply"><Send /></Button></div>
-                </div>
-              </div>
-            </section>
-          ) : (
-            <section className="feed" aria-labelledby="feed-title">
+          <section className="feed" aria-labelledby="feed-title">
+              {connectionNotice ? <output className="connection-notice"><span>{connectionNotice}</span><button onClick={() => setConnectionNotice(null)} aria-label="Dismiss notice">×</button></output> : null}
               <div className="feed-heading">
                 <div><p className="eyebrow">{view === 'Saved' ? 'Your library' : 'Your front page'}</p><h1 id="feed-title">{heading}</h1></div>
                 <div className="feed-sort" aria-label="Sort posts">
@@ -506,8 +453,7 @@ export default function HomePage() {
               )) : (
                 <div className="empty-feed"><Bookmark /><h2>No posts here yet</h2><p>{query ? 'Try a different search.' : 'Save a post and it will appear here.'}</p></div>
               )}
-            </section>
-          )}
+          </section>
 
           <aside className="context-rail" aria-label="Current Reddit activity">
             <section className="rail-card">
@@ -524,7 +470,7 @@ export default function HomePage() {
             <section className="rail-card compact-card">
               <CircleUserRound className="size-5" /><div><h2>Your week</h2><p>12 saved posts · 8 conversations</p></div><button>View</button>
             </section>
-            <p className="legal-line">Tangent is an independent client for Reddit.</p>
+            <p className="legal-line">Tangent is an independent client for Reddit. <a href="/privacy.html">Privacy</a> · <a href="/terms.html">Terms</a> · <a href="/support.html">Support</a></p>
           </aside>
         </main>
       </SidebarInset>
@@ -534,7 +480,7 @@ export default function HomePage() {
           <DialogHeader>
             <p className="eyebrow">Create</p>
             <DialogTitle>New post</DialogTitle>
-            <DialogDescription>Share something with one of your communities.</DialogDescription>
+            <DialogDescription>{session ? 'This action will be submitted to Reddit only after you press Post.' : 'Preview mode: connect Reddit before publishing live content.'}</DialogDescription>
           </DialogHeader>
           <div className="composer-fields">
             <div className="composer-field">

@@ -137,6 +137,9 @@
 .top-actions { display: flex; align-items: center; gap: .5rem; color: var(--ink-muted); }
 .demo-label { display: inline-flex; align-items: center; gap: .38rem; margin-right: .25rem; color: #9b958c; font-size: .66rem; font-weight: 620; }
 .demo-label > span { width: .42rem; height: .42rem; border-radius: 50%; background: #d99b3d; box-shadow: 0 0 0 4px rgba(217,155,61,.1); }
+.connection-notice { display: flex; align-items: center; justify-content: space-between; gap: .75rem; width: 100%; margin: 0 0 1rem; padding: .68rem .8rem; border: 1px solid rgba(230,79,44,.2); border-radius: .7rem; background: rgba(230,79,44,.07); color: #6f3a2a; font-size: .76rem; line-height: 1.35; }
+.connection-notice button { flex: none; width: 1.5rem; height: 1.5rem; border-radius: .4rem; color: #8c4a35; font-size: 1.1rem; line-height: 1; }
+.connection-notice button:hover { background: rgba(230,79,44,.12); }
 .create-button { height: 2.55rem; padding: 0 1rem; border-radius: .8rem; background: var(--ink); color: white; }
 .create-button:hover { background: #45403a; }
 .notification-dot { position: absolute; right: .42rem; top: .42rem; width: .4rem; height: .4rem; border-radius: 50%; background: var(--orange); border: 2px solid var(--paper); }
@@ -200,6 +203,7 @@
 .compact-card p { margin-top: .13rem; color: #9b958c; font-size: .65rem; }
 .compact-card button { color: var(--orange); font-size: .7rem; font-weight: 700; }
 .legal-line { margin: .85rem .35rem; color: #aaa39a; font-size: .61rem; }
+.legal-line a { color: inherit; text-decoration: underline; text-underline-offset: .15rem; }
 
 .empty-feed { min-height: 18rem; display: flex; flex-direction: column; align-items: center; justify-content: center; border: 1px dashed rgba(61,55,48,.18); border-radius: 1rem; color: #aaa39a; text-align: center; }
 .empty-feed svg { width: 1.4rem; height: 1.4rem; margin-bottom: .8rem; }
